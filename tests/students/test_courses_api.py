@@ -82,11 +82,11 @@ def test_update_course(client):
     course = Course.objects.create(name='course')
     updated_course = Course.objects.filter(id=course.id)
     updated_course.update(name='test_course')
-    response = client.get('/courses/', id=course.id)
+    response = client.get('/courses/')
     data = response.json()
 
     assert response.status_code == 200
-    assert data[0]['name'] == 'test_course'
+    assert data[0]['name'] == updated_course[0].name
 
 
 @pytest.mark.django_db
