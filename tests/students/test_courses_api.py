@@ -95,7 +95,7 @@ def test_update_course(client, course_factory):
     course = course_factory(name='course')
     print(course.name)
     print(course.id)
-    u_c = client.put(f'/api/v1/courses/?id={course.id}',
+    updated_course = client.patch(f'/api/v1/courses/?id={course.id}',
                      data={'name': 'updated_course', 'students': ['1', '2']},
                      format='json',
                      )
