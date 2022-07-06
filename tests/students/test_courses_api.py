@@ -14,6 +14,7 @@ def client():
 def course_factory():
     def factory(*args, **kwargs):
         return baker.make(Course, *args, **kwargs)
+
     return factory
 
 
@@ -21,13 +22,14 @@ def course_factory():
 def student_factory():
     def factory(*args, **kwargs):
         return baker.make(Student, *args, **kwargs)
+
     return factory
 
 
 @pytest.mark.django_db
 def test_list_courses(client, course_factory):
     courses = course_factory(_quantity=5)
-    response = client.get('/courses/')
+    response = client.get('/api/v1/courses/')
     data = response.json()
 
     assert response.status_code == 200
@@ -36,19 +38,19 @@ def test_list_courses(client, course_factory):
 
 @pytest.mark.django_db
 def test_get_course(client, course_factory):
-    courses = course_factory(_quantity=5)
-    response = client.get('/courses/')
+    courses = course_factory(name='course')
+    response = client.get(f'/api/v1/courses/{courses.id}/')
     data = response.json()
+    course = Course.objects.filter(id=data['id'])
 
     assert response.status_code == 200
-    for i, c in enumerate(data):
-        assert c['id'] == courses[i].id
+    assert data['id'] == course[0].id
 
 
 @pytest.mark.django_db
 def test_create_course(client):
     count = Course.objects.count()
-    response = client.post('/courses/', data={'name': 'course_1'})
+    response = client.post('/api/v1/courses/', data={'name': 'course_1'})
 
     assert response.status_code == 201
     assert Course.objects.count() == count + 1
@@ -57,56 +59,51 @@ def test_create_course(client):
 @pytest.mark.django_db
 def test_filter_course_id(client, course_factory):
     course_factory = course_factory(_quantity=10)
+    print(course_factory[0].id)
     filter_id = Course.objects.filter(id=course_factory[0].id)
-    response = client.get('/courses/')
+    response = client.get(f'/api/v1/courses/?id={course_factory[0].id}')
     data = response.json()
 
     assert response.status_code == 200
-    for c in filter_id:
-        assert data[0]['id'] == c.id
+    assert data[0]['id'] == filter_id[0].id
 
 
 @pytest.mark.django_db
 def test_filter_course_name(client, course_factory):
     course_factory = course_factory(_quantity=10)
     filter_name = Course.objects.filter(name=course_factory[2].name)
-    response = client.get('/courses/')
+    response = client.get(f'/api/v1/courses/?name={course_factory[2].name}')
     data = response.json()
 
     assert response.status_code == 200
-    assert data[2]['name'] == filter_name[0].name
-
-
-@pytest.mark.django_db
-def test_update_course(client):
-    course = Course.objects.create(name='course')
-    updated_course = Course.objects.filter(id=course.id)
-    updated_course.update(name='test_course')
-    response = client.get('/courses/')
-    data = response.json()
-
-    assert response.status_code == 200
-    assert data[0]['name'] == updated_course[0].name
+    assert data[0]['name'] == filter_name[0].name
 
 
 @pytest.mark.django_db
 def test_delete_course(client, course_factory):
-    course = course_factory(_quantity=10)
-
-    deleted_course = Course.objects.filter(id=course[1].id)
-    deleted_course.delete()
-    response = client.get('/courses/34/')
+    course = course_factory(name='course_1')
+    client.delete(f'/api/v1/courses/?name={course.id}')
+    response = client.get(f'/api/v1/courses/?name={course.id}')
     data = response.json()
 
-    assert response.status_code == 404
-    assert course[1].id not in data
+    assert response.status_code == 200
+    assert course.id not in data
 
 
+@pytest.mark.django_db
+def test_update_course(client, course_factory):
+    course = course_factory(name='course')
+    print(course.name)
+    print(course.id)
+    u_c = client.put(f'/api/v1/courses/?id={course.id}',
+                     data={'name': 'updated_course', 'students': ['1', '2']},
+                     format='json',
+                     )
 
+    response = client.get(f'/api/v1/courses/?id={course.id}')
+    data = response.json()
+    for d in data:
+        print(d.items())
 
-
-
-
-
-
-
+    assert response.status_code == 200
+    assert data[0]['name'] != course.name
